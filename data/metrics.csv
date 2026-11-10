@@ -1,0 +1,4 @@
+model,precision,recall,f1
+LogisticRegression,0.619,0.575,0.596
+LinearSVC,0.606,0.575,0.59
+RandomForest,0.658,0.524,0.584

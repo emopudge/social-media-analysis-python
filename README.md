@@ -1,84 +1,64 @@
 # Анализ популярности постов Telegram-канала
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.x-orange)](https://scikit-learn.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+Пайплайн анализа Telegram-канала: парсинг через API, предобработка текста, бинарная классификация популярности постов.
 
-End-to-end пайплайн анализа социальных медиа: парсинг Telegram-канала через API,
-предобработка текстов, тематическое моделирование и предсказание популярности
-постов (бинарная классификация) на основе эмбеддингов Word2Vec.
+## Задача
 
-## О проекте
+По тексту поста предсказать, станет ли он популярным (число реакций выше среднего по каналу). Признаки — очищенные лемматизированные тексты и TF-IDF. Модели: LogisticRegression, LinearSVC, RandomForest.
 
-**Задача:** по данным Telegram-канала предсказать, станет ли пост популярным
-(число реакций выше среднего по каналу).
+## Данные
 
-**Зачем:** инструмент для контент-аналитики — понимать, какие темы и форматы
-постов дают вовлечённость, и прогнозировать её до публикации.
+1000+ постов канала `@nerdsmedia`, собранных через Telethon: `id_post, date, text, views, reactions, comments`. Схема — в `data/nerds.csv`.
 
-**Данные:** 1000+ постов Telegram-канала, собранных через Telethon API:
-id, дата, текст, просмотры, реакции, комментарии.
+## Установка
 
-## Пайплайн
-
-| Шаг | Ноутбук | Что делает |
-|-----|---------|------------|
-| 1 | `01_python_basics.ipynb` | Справочник по базовому Python для анализа данных |
-| 2 | `02_telegram_parsing.ipynb` | Парсинг постов через Telethon → DataFrame → CSV |
-| 3 | `03_visualization_lda.ipynb` | EDA, визуализации, тематическое моделирование LDA + pyLDAvis |
-| 4 | `04_preprocessing.ipynb` | Очистка текста, лемматизация, создание таргета, train/val/test |
-| 5 | `05_word2vec.ipynb` | Обучение Word2Vec (300d) и усреднение векторов по документам |
-| 6 | `06_classification.ipynb` | Сравнение классификаторов, подбор гиперпараметров, метрики |
-
-## Результаты
-
-Метрики на тестовой выборке (таргет: `reactions > среднего`):
-
-| Модель | Precision | Recall | F1 |
-|--------|-----------|--------|----|
-| Logistic Regression | … | … | … |
-| LinearSVC | … | … | … |
-| Random Forest | … | … | **0.73** |
-
-**Лучшая модель:** Random Forest, F1 = 0.73 на тесте
-(подбор гиперпараметров по валидационной выборке, сохранение через `joblib`).
-
-## Визуализации
-
-| Вовлечённость во времени | Темы LDA |
-|--------------------------|----------|
-| ![](images/engagement_dynamics.png) | ![](images/topics_lda.png) |
-
-## Стек
-
-- **Данные:** Telethon, pandas, NumPy
-- **NLP:** NLTK, pymorphy3, gensim (Word2Vec), scikit-learn (LDA, TF-IDF)
-- **ML:** scikit-learn — LogisticRegression, LinearSVC, RandomForest, DecisionTree
-- **Визуализация:** Matplotlib, Seaborn, Plotly, pyLDAvis, WordCloud
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
 
 ## Запуск
 
 ```bash
-git clone https://github.com/<username>/telegram-popularity-analysis.git
-cd telegram-popularity-analysis
-pip install -r requirements.txt
+cp .env.example .env  # заполнить TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_CHANNEL
+python scripts/02_parsing.py
+python scripts/04_preprocessing.py
+python scripts/06_classification.py
 ```
 
-Ноутбуки открываются в Jupyter/Colab. Для парсинга нужны свои `api_id` и
-`api_hash` с [my.telegram.org](https://my.telegram.org) — положите их в
-переменные окружения, **не коммитьте в репозиторий**.
+Метрики сохраняются в `data/metrics.csv`, модель — в `models/classifier.joblib`.
+
+## Результаты
+
+Метрики на тестовой выборке (таргет: `reactions > среднего` по каналу):
+
+| Модель | Precision | Recall | F1 |
+|--------|-----------|--------|-----|
+| LogisticRegression | 0.619 | 0.575 | **0.596** |
+| LinearSVC | 0.606 | 0.575 | 0.590 |
+| RandomForest | 0.658 | 0.524 | 0.584 |
+
+Baseline (всегда предсказывать мажоритарный класс): F1 ≈ 0.50.
+
+Лучшая модель по валидационной выборке — LogisticRegression (val F1 = 0.608).
+Обучение на текстах без метаданных (время, просмотры, длина). Добавление этих
+признаков — следующий шаг.
 
 ## Структура
 
 ```
-notebooks/   # 6 ноутбуков в порядке пайплайна
-data/        # описание данных (CSV не хранятся в репо)
-models/      # сохранённые модели
-images/      # графики для README
+scripts/       02_parsing.py, 04_preprocessing.py, 06_classification.py
+data/          nerds.csv, nerds_clean.csv, metrics.csv
+models/        tfidf.joblib, classifier.joblib
+images/        engagement_dynamics.png, topics_lda.png
 ```
 
-## Автор
+## Ограничения
 
-**Эмилия** — junior data analyst
-- GitHub: [@emopudge](https://github.com/username)
-- Telegram: @smellless_kozulya
+- На новых аккаунтах Telegram включает FloodWait. В `02_parsing.py` реализован backoff с повтором запросов.
+- Если парсинг недоступен, используйте готовый `data/nerds.csv`.
+
+## Стек
+
+Python 3.10+, pandas, scikit-learn, NLTK, pymorphy3, Telethon, matplotlib, seaborn.

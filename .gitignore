@@ -1,18 +1,11 @@
-data/*.csv
-data/*.npy
-models/*.model
-models/*.joblib
-models/*.pkl
-
-# секреты
-.env
-secrets.py
-*api_hash*
-
-# служебное
-.ipynb_checkpoints/
 __pycache__/
-*.pyc
-.DS_Store
-venv/
+*.py[cod]
 .venv/
+venv/
+.env
+*.session
+*.session-journal
+*.joblib
+*.npy
+.ipynb_checkpoints/
+.DS_Store
